@@ -24,7 +24,14 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-
+      - name: Inspect project files
+        run: |
+          pwd
+          ls -la
+          echo "---- SETTINGS FILE ----"
+          cat settings.gradle
+          echo "---- APP DIRECTORY ----"
+          ls -la app
       - name: Check Gradle projects
         run: gradle projects
 
