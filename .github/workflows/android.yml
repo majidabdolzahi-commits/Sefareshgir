@@ -1,6 +1,6 @@
 name: Build Sefareshgir APK
 
-on:
+run: gradle :app:processDebugMainManifest --info --stacktrace
   workflow_dispatch:
   push:
     branches:
