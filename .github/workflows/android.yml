@@ -1,6 +1,6 @@
 name: Build Sefareshgir APK
 
-run: gradle :app:processDebugMainManifest --info --stacktrace
+on:
   workflow_dispatch:
   push:
     branches:
@@ -24,19 +24,12 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Inspect project files
-        run: |
-          pwd
-          ls -la
-          echo "---- SETTINGS FILE ----"
-          cat settings.gradle
-          echo "---- APP DIRECTORY ----"
-          ls -la app
-      - name: Check Gradle projects
-        run: gradle projects
+
+      - name: Build APK with diagnostics
+        run: gradle :app:processDebugMainManifest --info --stacktrace
 
       - name: Build APK
-        run: gradle assembleDebug --stacktrace
+        run: gradle assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
