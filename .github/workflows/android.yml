@@ -1,4 +1,6 @@
-name: Build Sefareshgir APK
+      - name: Check Gradle projects
+        run: gradle projects
+        name: Build Sefareshgir APK
 
 on:
   workflow_dispatch:
