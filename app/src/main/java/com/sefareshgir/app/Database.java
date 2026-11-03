@@ -319,41 +319,22 @@ public class Database extends SQLiteOpenHelper {
                 return -1;
             }
 
-            ContentValues stockUpdate = new ContentValues();
-            stockUpdate.put(
-                "stock_pieces",
-                -item.qty
-            );
+        android.database.sqlite.SQLiteStatement statement =
+    db.compileStatement(
+        "UPDATE products " +
+        "SET stock_pieces = stock_pieces - ? " +
+        "WHERE id = ? AND stock_pieces >= ?"
+    );
 
-            int updated = db.update(
-                "products",
-                stockUpdate,
-                "id = ? AND stock_pieces >= ?",
-                new String[]{
-                    String.valueOf(item.productId),
-                    String.valueOf(item.qty)
-                }
-            );
+statement.bindLong(1, item.qty);
+statement.bindLong(2, item.productId);
+statement.bindLong(3, item.qty);
 
-            if (updated != 1) {
-                return -1;
-            }
-        }
+int updated = statement.executeUpdateDelete();
 
-        db.setTransactionSuccessful();
-
-        return orderId;
-
-    } catch (Exception e) {
-
-        return -1;
-
-    } finally {
-
-        db.endTransaction();
-    }
-            }
-
+if (updated != 1) {
+    return -1;
+}
     public void setSetting(String key, String value) {
 
         ContentValues values = new ContentValues();
