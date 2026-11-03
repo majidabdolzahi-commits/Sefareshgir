@@ -170,7 +170,49 @@ public class Database extends SQLiteOpenHelper {
 
     // ثبت سفارش
 
-    public long createOrder(
+    public 
+
+            if (paid > 0)
+
+    // دریافت سفارش‌ها
+
+    public Cursor orders() {
+
+        return getReadableDatabase().rawQuery(
+            "SELECT * FROM orders ORDER BY id DESC",
+            null
+        );
+    }
+
+    // محاسبه آمار
+
+    public long scalar(String sql) {
+
+        Cursor cursor =
+            getReadableDatabase().rawQuery(sql, null);
+
+        try {
+            return cursor.moveToFirst()
+                ? cursor.getLong(0)
+                : 0;
+        } finally {
+            cursor.close();
+        }
+    }
+
+    // تنظیمات فروشگاه
+
+    public String setting(String key) {
+
+        Cursor cursor = getReadableDatabase().rawQuery(
+            "SELECT value FROM settings WHERE key=?",
+            new String[]{key}
+        );
+
+        try {
+            return cursor.moveToFirst()
+                ? cursor.getString(0)
+                : "";long createOrder(
             String customer,
             long total,
             long paid,
@@ -223,71 +265,94 @@ public class Database extends SQLiteOpenHelper {
                         item.qty
                     }
                 );
+            }public long createOrder(
+        long customerId,
+        ArrayList<CartLine> items,
+        long paid) {
+
+    SQLiteDatabase db = getWritableDatabase();
+
+    long total = 0;
+
+    for (CartLine item : items) {
+        if (item.qty <= 0 || item.price < 0) {
+            return -1;
+        }
+
+        total += (long) item.qty * item.price;
+    }
+
+    if (items.isEmpty() || paid < 0 || paid > total) {
+        return -1;
+    }
+
+    db.beginTransaction();
+
+    try {
+
+        ContentValues order = new ContentValues();
+        order.put("customer_id", customerId);
+        order.put("total", total);
+        order.put("paid", paid);
+        order.put("date", new SimpleDateFormat(
+            "yyyy-MM-dd HH:mm:ss",
+            Locale.getDefault()
+        ).format(new Date()));
+
+        long orderId = db.insert("orders", null, order);
+
+        if (orderId == -1) {
+            return -1;
+        }
+
+        for (CartLine item : items) {
+
+            ContentValues orderItem = new ContentValues();
+            orderItem.put("order_id", orderId);
+            orderItem.put("product_id", item.productId);
+            orderItem.put("name", item.name);
+            orderItem.put("qty", item.qty);
+            orderItem.put("price", item.price);
+            orderItem.put("buy", item.buy);
+
+            if (db.insert("order_items", null, orderItem) == -1) {
+                return -1;
             }
 
-            if (paid > 0) {
+            ContentValues stockUpdate = new ContentValues();
+            stockUpdate.put(
+                "stock_pieces",
+                -item.qty
+            );
 
-                ContentValues payment = new ContentValues();
+            int updated = db.update(
+                "products",
+                stockUpdate,
+                "id = ? AND stock_pieces >= ?",
+                new String[]{
+                    String.valueOf(item.productId),
+                    String.valueOf(item.qty)
+                }
+            );
 
-                payment.put("order_id", orderId);
-                payment.put("amount", paid);
-                payment.put("created_at", currentDate());
-
-                db.insert("payments", null, payment);
+            if (updated != 1) {
+                return -1;
             }
-
-            db.setTransactionSuccessful();
-
-            return orderId;
-
-        } finally {
-            db.endTransaction();
         }
+
+        db.setTransactionSuccessful();
+
+        return orderId;
+
+    } catch (Exception e) {
+
+        return -1;
+
+    } finally {
+
+        db.endTransaction();
     }
-
-    // دریافت سفارش‌ها
-
-    public Cursor orders() {
-
-        return getReadableDatabase().rawQuery(
-            "SELECT * FROM orders ORDER BY id DESC",
-            null
-        );
-    }
-
-    // محاسبه آمار
-
-    public long scalar(String sql) {
-
-        Cursor cursor =
-            getReadableDatabase().rawQuery(sql, null);
-
-        try {
-            return cursor.moveToFirst()
-                ? cursor.getLong(0)
-                : 0;
-        } finally {
-            cursor.close();
-        }
-    }
-
-    // تنظیمات فروشگاه
-
-    public String setting(String key) {
-
-        Cursor cursor = getReadableDatabase().rawQuery(
-            "SELECT value FROM settings WHERE key=?",
-            new String[]{key}
-        );
-
-        try {
-            return cursor.moveToFirst()
-                ? cursor.getString(0)
-                : "";
-        } finally {
-            cursor.close();
-        }
-    }
+            }
 
     public void setSetting(String key, String value) {
 
