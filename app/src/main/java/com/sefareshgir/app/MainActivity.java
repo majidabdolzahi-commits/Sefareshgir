@@ -36,7 +36,11 @@ public class MainActivity extends Activity {
         setContentView(layout);
     }
 
-    void addButton(String text) {
+    void addButton(String text) { button.setOnClickListener(v -> {
+    if (title.contains("کالاها")) {
+        startActivity(new Intent(this, ProductActivity.class));
+    }
+});
         Button button = new Button(this);
         button.setText(text);
         button.setTextSize(17);
