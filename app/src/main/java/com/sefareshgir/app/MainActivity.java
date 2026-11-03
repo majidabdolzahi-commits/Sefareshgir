@@ -115,3 +115,9 @@ public class MainActivity extends Activity {
         layout.addView(button, params);
     }
 }
+private void showPaymentDialog(
+        long orderId,
+        long remaining) {
+
+    showValidatedPaymentDialog(orderId, remaining);
+}
