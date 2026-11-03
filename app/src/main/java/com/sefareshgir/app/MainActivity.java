@@ -36,8 +36,23 @@ public class MainActivity extends Activity {
         setContentView(layout);
     }
 
-    void addButton(String text) { button.setOnClickListener(v -> {
+button.setOnClickListener(v -> {
+
     if (title.contains("کالاها")) {
+
+        startActivity(
+            new Intent(this, ProductActivity.class)
+        );
+
+    } else if (title.contains("مشتریان")) {
+
+        startActivity(
+            new Intent(this, CustomerActivity.class)
+        );
+
+    }
+
+});
         startActivity(new Intent(this, ProductActivity.class));
     }
 });
