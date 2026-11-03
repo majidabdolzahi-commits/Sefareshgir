@@ -6,6 +6,9 @@
     android:supportsRtl="true"> <activity
     android:name=".CustomerActivity"
     android:exported="false" />
+    <activity
+    android:name=".OrderActivity"
+    android:exported="false" />
 <activity
     android:name=".ProductActivity"
     android:exported="false" />
