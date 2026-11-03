@@ -1,46 +1,36 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"><application
+    android:allowBackup="true"
+    android:label="سفارش‌یار"
+    android:theme="@style/AppTheme"
+    android:supportsRtl="true">
 
-    <application
-        android:allowBackup="true"
-        android:label="سفارش‌یار"
-        android:theme="@style/AppTheme"
-        android:supportsRtl="true">
-    android:name=".MainActivity"
-    android:exported="true">
+    <activity
+        android:name=".MainActivity"
+        android:exported="true">
 
-    <intent-filter>
-        <action android:name="android.intent.action.MAIN" />
-        <category android:name="android.intent.category.LAUNCHER" />
-    </intent-filter>
+        <intent-filter>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent-filter>
 
-</activity>
-        <activity
-            android:name=".MainActivity"
-            android:exported="true">
+    </activity>
 
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
+    <activity
+        android:name=".CustomerActivity"
+        android:exported="false" />
 
-        </activity>
+    <activity
+        android:name=".PaymentActivity"
+        android:exported="false" />
 
-        <activity
-            android:name=".CustomerActivity"
-            android:exported="false" />
+    <activity
+        android:name=".OrderActivity"
+        android:exported="false" />
 
-        <activity
-            android:name=".PaymentActivity"
-            android:exported="false" />
+    <activity
+        android:name=".ProductActivity"
+        android:exported="false" />
 
-        <activity
-            android:name=".OrderActivity"
-            android:exported="false" />
-
-        <activity
-            android:name=".ProductActivity"
-            android:exported="false" />
-
-    </application>
+</application>
 
 </manifest>
