@@ -1,4 +1,6 @@
-apply plugin: 'com.android.application'
+plugins {
+    id 'com.android.application'
+}
 
 android {
     namespace 'com.sefareshgir.app'
@@ -9,10 +11,6 @@ android {
         minSdk 23
         targetSdk 35
         versionCode 1
-        versionName '1.0'
+        versionName '1.0.0'
     }
-}
-
-dependencies {
-    implementation 'androidx.sqlite:sqlite:2.4.0'
 }
