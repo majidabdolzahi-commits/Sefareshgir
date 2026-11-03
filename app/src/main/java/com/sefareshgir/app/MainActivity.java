@@ -1,14 +1,17 @@
 package com.sefareshgir.app;
-import android.content.Intent;
+
 import android.app.Activity;
+import android.content.Intent;
 import android.os.Bundle;
 import android.graphics.Color;
 import android.view.Gravity;
-import android.widget.*;
+import android.widget.Button;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 
 public class MainActivity extends Activity {
 
-    LinearLayout layout;
+    private LinearLayout layout;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -24,100 +27,35 @@ public class MainActivity extends Activity {
         title.setTextSize(30);
         title.setTextColor(Color.rgb(16,91,73));
         title.setGravity(Gravity.CENTER);
+
         layout.addView(title);
 
-        addButton("📦 مدیریت کالاها");
-        addButton("👥 مدیریت مشتریان");
-        addButton("🧾 ثبت سفارش");
-        addButton("💰 دریافت پرداخت");
-        addButton("📊 گزارش فروش");
-        addButton("⚙️ تنظیمات");
+        addButton("📦 مدیریت کالاها", ProductActivity.class);
+        addButton("👥 مدیریت مشتریان", CustomerActivity.class);
+        addButton("🧾 ثبت سفارش", OrderActivity.class);
+        addButton("💰 دریافت پرداخت", PaymentActivity.class);
 
         setContentView(layout);
     }
-    button.setOnClickListener(v -> {
 
-    if (title.contains("کالاها")) {
+    private void addButton(String text, Class<?> target) {
 
-        startActivity(
-            new Intent(this, ProductActivity.class)
-        );
-
-    } else if (title.contains("مشتریان")) {
-
-        startActivity(
-            new Intent(this, CustomerActivity.class)
-        );
-
-    } else if (title.contains("ثبت سفارش")) {
-
-        startActivity(
-            new Intent(this, OrderActivity.class)
-        );
-
-    } else if (title.contains("دریافت پرداخت")) {
-
-        startActivity(
-            new Intent(this, PaymentActivity.class)
-        );
-
-    }
-
-}
-        startActivity(
-            new Intent(this, ProductActivity.class)
-        );
-
-    } else if (title.contains("مشتریان")) {
-
-        startActivity(
-            new Intent(this, CustomerActivity.class)
-        );
-
-    } else if (title.contains("ثبت سفارش")) {
-
-        startActivity(
-            new Intent(this, OrderActivity.class)
-        );
-
-    }
-
-});
-
-    if (title.contains("کالاها")) {
-
-        startActivity(
-            new Intent(this, ProductActivity.class)
-        );
-
-    } else if (title.contains("مشتریان")) {
-
-        startActivity(
-            new Intent(this, CustomerActivity.class)
-        );
-
-    }
-
-});
-        startActivity(new Intent(this, ProductActivity.class));
-    }
-});
         Button button = new Button(this);
         button.setText(text);
         button.setTextSize(17);
 
+        button.setOnClickListener(v -> {
+            startActivity(new Intent(this, target));
+        });
+
         LinearLayout.LayoutParams params =
             new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 65);
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                65
+            );
 
         params.setMargins(0, 12, 0, 5);
 
         layout.addView(button, params);
     }
-}
-private void showPaymentDialog(
-        long orderId,
-        long remaining) {
-
-    showValidatedPaymentDialog(orderId, remaining);
 }
