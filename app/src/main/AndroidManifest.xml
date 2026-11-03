@@ -3,7 +3,9 @@
     android:allowBackup="true"
     android:label="سفارش‌یار"
     android:theme="@style/AppTheme"
-    android:supportsRtl="true">
+    android:supportsRtl="true"> <activity
+    android:name=".CustomerActivity"
+    android:exported="false" />
 <activity
     android:name=".ProductActivity"
     android:exported="false" />
