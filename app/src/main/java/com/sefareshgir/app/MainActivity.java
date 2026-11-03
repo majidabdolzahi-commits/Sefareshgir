@@ -35,11 +35,35 @@ public class MainActivity extends Activity {
 
         setContentView(layout);
     }
-
-button.setOnClickListener(v -> {
+    button.setOnClickListener(v -> {
 
     if (title.contains("کالاها")) {
 
+        startActivity(
+            new Intent(this, ProductActivity.class)
+        );
+
+    } else if (title.contains("مشتریان")) {
+
+        startActivity(
+            new Intent(this, CustomerActivity.class)
+        );
+
+    } else if (title.contains("ثبت سفارش")) {
+
+        startActivity(
+            new Intent(this, OrderActivity.class)
+        );
+
+    } else if (title.contains("دریافت پرداخت")) {
+
+        startActivity(
+            new Intent(this, PaymentActivity.class)
+        );
+
+    }
+
+}
         startActivity(
             new Intent(this, ProductActivity.class)
         );
