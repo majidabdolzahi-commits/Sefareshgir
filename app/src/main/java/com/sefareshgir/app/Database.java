@@ -170,4 +170,4 @@ public class Database extends SQLiteOpenHelper {
 
             long total = 0;
 
-            for (Cart
+            for (Cart 
