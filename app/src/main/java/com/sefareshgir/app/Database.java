@@ -1,281 +1,416 @@
 package com.sefareshgir.app;
 
-import android.app.Activity;
-import android.app.AlertDialog;
-import android.os.Bundle;
-import android.graphics.Color;
-import android.view.Gravity;
-import android.widget.*;
-
+import android.content.ContentValues;
+import android.content.Context;
 import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteOpenHelper;
 
-public class PaymentActivity extends Activity {
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.List;
+import java.util.Locale;
 
-    private Database db;
-    private LinearLayout listLayout;
+public class Database extends SQLiteOpenHelper {
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
+    private static final String DB_NAME = "sefareshgir.db";
+    private static final int DB_VERSION = 1;
 
-        db = new Database(this);
-
-        showScreen();
-        loadOrders();
+    public Database(Context context) {
+        super(context, DB_NAME, null, DB_VERSION);
     }
 
     @Override
-    protected void onResume() {
-        super.onResume();
+    public void onCreate(SQLiteDatabase db) {
 
-        if (listLayout != null) {
-            loadOrders();
+        db.execSQL("CREATE TABLE products (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                "name TEXT NOT NULL," +
+                "category TEXT," +
+                "unit TEXT DEFAULT 'عدد'," +
+                "per_carton INTEGER DEFAULT 1," +
+                "buy_price INTEGER DEFAULT 0," +
+                "piece_price INTEGER DEFAULT 0," +
+                "carton_price INTEGER DEFAULT 0," +
+                "stock_pieces INTEGER DEFAULT 0," +
+                "photo TEXT)");
+
+        db.execSQL("CREATE TABLE customers (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                "name TEXT NOT NULL," +
+                "phone TEXT," +
+                "address TEXT)");
+
+        db.execSQL("CREATE TABLE orders (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                "customer_id INTEGER," +
+                "customer_name TEXT," +
+                "created_at TEXT," +
+                "total INTEGER DEFAULT 0," +
+                "paid INTEGER DEFAULT 0," +
+                "profit INTEGER DEFAULT 0," +
+                "note TEXT)");
+
+        db.execSQL("CREATE TABLE order_items (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                "order_id INTEGER," +
+                "product_id INTEGER," +
+                "product_name TEXT," +
+                "quantity_pieces INTEGER," +
+                "unit_price INTEGER," +
+                "buy_price INTEGER," +
+                "line_total INTEGER)");
+
+        db.execSQL("CREATE TABLE payments (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                "order_id INTEGER," +
+                "amount INTEGER," +
+                "created_at TEXT)");
+
+        db.execSQL("CREATE TABLE settings (" +
+                "key TEXT PRIMARY KEY," +
+                "value TEXT)");
+
+        db.execSQL("INSERT INTO settings(key,value) VALUES " +
+                "('store_name','فروشگاه من')," +
+                "('store_phone','')");
+    }
+
+    @Override
+    public void onUpgrade(
+            SQLiteDatabase db,
+            int oldVersion,
+            int newVersion) {
+        // ساختار پایگاه داده در نسخه‌های بعدی ارتقا می‌یابد.
+    }
+
+    private String currentDate() {
+        return new SimpleDateFormat(
+                "yyyy/MM/dd HH:mm",
+                Locale.getDefault()
+        ).format(new Date());
+    }
+
+    public long addProduct(
+            String name,
+            String category,
+            int perCarton,
+            long buyPrice,
+            long piecePrice,
+            long cartonPrice,
+            int stock) {
+
+        ContentValues values = new ContentValues();
+
+        values.put("name", name);
+        values.put("category", category);
+        values.put("per_carton", Math.max(1, perCarton));
+        values.put("buy_price", buyPrice);
+        values.put("piece_price", piecePrice);
+        values.put("carton_price", cartonPrice);
+        values.put("stock_pieces", stock);
+
+        return getWritableDatabase().insert(
+                "products", null, values);
+    }
+
+    public Cursor products() {
+        return getReadableDatabase().rawQuery(
+                "SELECT * FROM products ORDER BY name",
+                null
+        );
+    }
+
+    public long addCustomer(String name, String phone) {
+
+        ContentValues values = new ContentValues();
+
+        values.put("name", name);
+        values.put("phone", phone);
+        values.put("address", "");
+
+        return getWritableDatabase().insert(
+                "customers", null, values);
+    }
+
+    public Cursor customers() {
+        return getReadableDatabase().rawQuery(
+                "SELECT * FROM customers ORDER BY name",
+                null
+        );
+    }
+
+    public Cursor orders() {
+        return getReadableDatabase().rawQuery(
+                "SELECT * FROM orders ORDER BY id DESC",
+                null
+        );
+    }
+
+    public long createOrder(
+            long customerId,
+            List<CartLine> items,
+            long paid) {
+
+        if (items == null || items.isEmpty() || paid < 0) {
+            return -1;
         }
-    }
 
-    private void showScreen() {
+        long total = 0;
+        long profit = 0;
 
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(16, 16, 16, 16);
-        root.setBackgroundColor(Color.rgb(246, 248, 247));
+        for (CartLine item : items) {
 
-        TextView title = new TextView(this);
-        title.setText("دریافت پرداخت‌ها");
-        title.setTextSize(24);
-        title.setTextColor(Color.rgb(7, 91, 67));
-        title.setGravity(Gravity.CENTER);
-        title.setPadding(5, 15, 5, 20);
+            if (item.qty <= 0 || item.price < 0 || item.buy < 0) {
+                return -1;
+            }
 
-        root.addView(title);
+            total += (long) item.qty * item.price;
+            profit += (long) item.qty * (item.price - item.buy);
+        }
 
-        TextView subtitle = new TextView(this);
-        subtitle.setText("سفارش‌های دارای مانده بدهی");
-        subtitle.setTextSize(16);
-        subtitle.setPadding(5, 5, 5, 15);
+        if (paid > total) {
+            return -1;
+        }
 
-        root.addView(subtitle);
-
-        ScrollView scroll = new ScrollView(this);
-
-        listLayout = new LinearLayout(this);
-        listLayout.setOrientation(LinearLayout.VERTICAL);
-
-        scroll.addView(listLayout);
-        root.addView(scroll);
-
-        setContentView(root);
-    }
-
-    private void loadOrders() {
-
-        listLayout.removeAllViews();
-
-        Cursor cursor = db.orders();
-
-        long totalDebt = 0;
-        int debtCount = 0;
+        SQLiteDatabase db = getWritableDatabase();
+        db.beginTransaction();
 
         try {
 
-            while (cursor.moveToNext()) {
+            String customerName = "مشتری متفرقه";
 
-                long orderId = cursor.getLong(
-                    cursor.getColumnIndexOrThrow("id")
+            if (customerId > 0) {
+
+                Cursor customer = db.query(
+                        "customers",
+                        new String[]{"name"},
+                        "id=?",
+                        new String[]{String.valueOf(customerId)},
+                        null, null, null
                 );
 
-                long total = cursor.getLong(
-                    cursor.getColumnIndexOrThrow("total")
-                );
+                try {
+                    if (!customer.moveToFirst()) {
+                        return -1;
+                    }
 
-                long paid = cursor.getLong(
-                    cursor.getColumnIndexOrThrow("paid")
-                );
+                    customerName = customer.getString(0);
 
-                String customer = cursor.getString(
-                    cursor.getColumnIndexOrThrow("customer_name")
-                );
-
-                if (customer == null || customer.isEmpty()) {
-                    customer = "مشتری متفرقه";
+                } finally {
+                    customer.close();
                 }
-
-                long remaining = total - paid;
-
-                if (remaining <= 0) {
-                    continue;
-                }
-
-                totalDebt += remaining;
-                debtCount++;
-
-                addOrderCard(
-                    orderId,
-                    customer,
-                    total,
-                    paid,
-                    remaining
-                );
             }
 
+            ContentValues order = new ContentValues();
+
+            order.put("customer_id", customerId);
+            order.put("customer_name", customerName);
+            order.put("created_at", currentDate());
+            order.put("total", total);
+            order.put("paid", paid);
+            order.put("profit", profit);
+            order.put("note", "");
+
+            long orderId = db.insertOrThrow(
+                    "orders", null, order);
+
+            for (CartLine item : items) {
+
+                ContentValues row = new ContentValues();
+
+                row.put("order_id", orderId);
+                row.put("product_id", item.productId);
+                row.put("product_name", item.name);
+                row.put("quantity_pieces", item.qty);
+                row.put("unit_price", item.price);
+                row.put("buy_price", item.buy);
+                row.put("line_total",
+                        (long) item.qty * item.price);
+
+                db.insertOrThrow(
+                        "order_items", null, row);
+
+                android.database.sqlite.SQLiteStatement statement =
+                        db.compileStatement(
+                                "UPDATE products " +
+                                "SET stock_pieces = stock_pieces - ? " +
+                                "WHERE id = ? AND stock_pieces >= ?"
+                        );
+
+                statement.bindLong(1, item.qty);
+                statement.bindLong(2, item.productId);
+                statement.bindLong(3, item.qty);
+
+                int updated = statement.executeUpdateDelete();
+                statement.close();
+
+                if (updated != 1) {
+                    return -1;
+                }
+            }
+
+            if (paid > 0) {
+
+                ContentValues payment = new ContentValues();
+
+                payment.put("order_id", orderId);
+                payment.put("amount", paid);
+                payment.put("created_at", currentDate());
+
+                db.insertOrThrow(
+                        "payments", null, payment);
+            }
+
+            db.setTransactionSuccessful();
+
+            return orderId;
+
+        } catch (Exception e) {
+
+            return -1;
+
+        } finally {
+            db.endTransaction();
+        }
+    }
+
+    public boolean addPayment(long orderId, long amount) {
+
+        if (amount <= 0) {
+            return false;
+        }
+
+        SQLiteDatabase db = getWritableDatabase();
+        db.beginTransaction();
+
+        try {
+
+            Cursor cursor = db.query(
+                    "orders",
+                    new String[]{"total", "paid"},
+                    "id=?",
+                    new String[]{String.valueOf(orderId)},
+                    null, null, null
+            );
+
+            long total;
+            long alreadyPaid;
+
+            try {
+
+                if (!cursor.moveToFirst()) {
+                    return false;
+                }
+
+                total = cursor.getLong(0);
+                alreadyPaid = cursor.getLong(1);
+
+            } finally {
+                cursor.close();
+            }
+
+            if (amount > total - alreadyPaid) {
+                return false;
+            }
+
+            ContentValues payment = new ContentValues();
+
+            payment.put("order_id", orderId);
+            payment.put("amount", amount);
+            payment.put("created_at", currentDate());
+
+            db.insertOrThrow(
+                    "payments", null, payment);
+
+            ContentValues update = new ContentValues();
+
+            update.put("paid", alreadyPaid + amount);
+
+            db.update(
+                    "orders",
+                    update,
+                    "id=?",
+                    new String[]{String.valueOf(orderId)}
+            );
+
+            db.setTransactionSuccessful();
+
+            return true;
+
+        } catch (Exception e) {
+
+            return false;
+
+        } finally {
+            db.endTransaction();
+        }
+    }
+
+    public Cursor orderItems(long orderId) {
+        return getReadableDatabase().rawQuery(
+                "SELECT * FROM order_items WHERE order_id=?",
+                new String[]{String.valueOf(orderId)}
+        );
+    }
+
+    public long orderDebt(long orderId) {
+
+        Cursor cursor = getReadableDatabase().rawQuery(
+                "SELECT total - paid FROM orders WHERE id=?",
+                new String[]{String.valueOf(orderId)}
+        );
+
+        try {
+            return cursor.moveToFirst()
+                    ? cursor.getLong(0)
+                    : 0;
         } finally {
             cursor.close();
         }
+    }
 
-        TextView summary = new TextView(this);
+    public long scalar(String sql) {
 
-        summary.setText(
-            "تعداد سفارش‌های بدهکار: " + debtCount +
-            "\nمجموع بدهی: " + totalDebt + " ریال"
-        );
+        Cursor cursor = getReadableDatabase().rawQuery(sql, null);
 
-        summary.setTextSize(17);
-        summary.setTextColor(Color.rgb(7, 91, 67));
-        summary.setPadding(10, 15, 10, 20);
-
-        listLayout.addView(summary);
-
-        if (debtCount == 0) {
-
-            TextView empty = new TextView(this);
-            empty.setText("هیچ سفارش بدهکاری وجود ندارد.");
-            empty.setTextSize(16);
-            empty.setGravity(Gravity.CENTER);
-            empty.setPadding(10, 30, 10, 30);
-
-            listLayout.addView(empty);
+        try {
+            return cursor.moveToFirst()
+                    ? cursor.getLong(0)
+                    : 0;
+        } finally {
+            cursor.close();
         }
     }
 
-    private void addOrderCard(
-            long orderId,
-            String customer,
-            long total,
-            long paid,
-            long remaining) {
+    public String setting(String key) {
 
-        LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(15, 15, 15, 15);
-        card.setBackgroundColor(Color.WHITE);
-
-        LinearLayout.LayoutParams params =
-            new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            );
-
-        params.setMargins(0, 5, 0, 12);
-
-        TextView details = new TextView(this);
-
-        details.setText(
-            "شماره سفارش: " + orderId +
-            "\nمشتری: " + customer +
-            "\nمبلغ کل: " + total + " ریال" +
-            "\nپرداخت‌شده: " + paid + " ریال" +
-            "\nمانده بدهی: " + remaining + " ریال"
+        Cursor cursor = getReadableDatabase().rawQuery(
+                "SELECT value FROM settings WHERE key=?",
+                new String[]{key}
         );
 
-        details.setTextSize(15);
-        details.setTextColor(Color.DKGRAY);
-
-        card.addView(details);
-
-        Button paymentButton = new Button(this);
-        paymentButton.setText("ثبت پرداخت جدید");
-        paymentButton.setAllCaps(false);
-
-        paymentButton.setOnClickListener(v ->
-            showPaymentDialog(orderId, remaining)
-        );
-
-        card.addView(paymentButton);
-
-        listLayout.addView(card, params);
+        try {
+            return cursor.moveToFirst()
+                    ? cursor.getString(0)
+                    : "";
+        } finally {
+            cursor.close();
+        }
     }
 
-    private void showPaymentDialog(
-            long orderId,
-            long remaining) {
+    public void setSetting(String key, String value) {
 
-        EditText amountField = new EditText(this);
+        ContentValues values = new ContentValues();
 
-        amountField.setHint("مبلغ دریافتی به ریال");
-        amountField.setInputType(
-            android.text.InputType.TYPE_CLASS_NUMBER
+        values.put("key", key);
+        values.put("value", value);
+
+        getWritableDatabase().insertWithOnConflict(
+                "settings",
+                null,
+                values,
+                SQLiteDatabase.CONFLICT_REPLACE
         );
-
-        AlertDialog dialog = new AlertDialog.Builder(this)
-            .setTitle("ثبت پرداخت سفارش " + orderId)
-            .setMessage("مانده بدهی: " + remaining + " ریال")
-            .setView(amountField)
-            .setPositiveButton("ثبت پرداخت", null)
-            .setNegativeButton("انصراف", null)
-            .create();
-
-        dialog.setOnShowListener(d -> {
-
-            dialog.getButton(AlertDialog.BUTTON_POSITIVE)
-                .setOnClickListener(v -> {
-
-                    String value = amountField
-                        .getText()
-                        .toString()
-                        .trim();
-
-                    if (value.isEmpty()) {
-                        amountField.setError("مبلغ را وارد کن");
-                        return;
-                    }
-
-                    try {
-
-                        long amount = Long.parseLong(value);
-
-                        if (amount <= 0 || amount > remaining) {
-
-                            amountField.setError(
-                                "مبلغ باید بیشتر از صفر و حداکثر برابر بدهی باشد."
-                            );
-
-                            return;
-                        }
-
-                        boolean success = db.addPayment(
-                            orderId,
-                            amount
-                        );
-
-                        if (!success) {
-
-                            Toast.makeText(
-                                this,
-                                "ثبت پرداخت انجام نشد. دوباره بررسی کن.",
-                                Toast.LENGTH_LONG
-                            ).show();
-
-                            return;
-                        }
-
-                        Toast.makeText(
-                            this,
-                            "پرداخت با موفقیت ثبت شد.",
-                            Toast.LENGTH_SHORT
-                        ).show();
-
-                        dialog.dismiss();
-                        loadOrders();
-
-                    } catch (NumberFormatException e) {
-
-                        amountField.setError(
-                            "مبلغ معتبر وارد کن"
-                        );
-                    }
-                });
-        });
-
-        dialog.show();
     }
 }
