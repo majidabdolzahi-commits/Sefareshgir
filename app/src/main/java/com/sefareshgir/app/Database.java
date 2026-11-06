@@ -1,429 +1,625 @@
 package com.sefareshgir.app;
 
-import android.content.ContentValues;
-import android.content.Context;
+import android.app.Activity;
+import android.app.AlertDialog;
+import android.os.Bundle;
+import android.graphics.Color;
+import android.view.Gravity;
+import android.view.View;
+import android.widget.*;
+import android.text.InputType;
+
 import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
-import android.database.sqlite.SQLiteOpenHelper;
 
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
-import java.util.Locale;
 
-public class Database extends SQLiteOpenHelper {
+public class OrderActivity extends Activity {
 
-    private static final String DB_NAME = "sefareshgir.db";
-    private static final int DB_VERSION = 1;
+    private Database db;
 
-    public Database(Context context) {
-        super(context, DB_NAME, null, DB_VERSION);
-    }
+    private Spinner customerSpinner;
+    private AutoCompleteTextView productSearch;
 
-    @Override
-    public void onCreate(SQLiteDatabase db) {
+    private EditText cartonField;
+    private EditText pieceField;
+    private EditText paidField;
 
-        db.execSQL("CREATE TABLE products (" +
-                "id INTEGER PRIMARY KEY AUTOINCREMENT," +
-                "name TEXT NOT NULL," +
-                "category TEXT," +
-                "unit TEXT DEFAULT 'عدد'," +
-                "per_carton INTEGER DEFAULT 1," +
-                "buy_price INTEGER DEFAULT 0," +
-                "piece_price INTEGER DEFAULT 0," +
-                "carton_price INTEGER DEFAULT 0," +
-                "stock_pieces INTEGER DEFAULT 0," +
-                "photo TEXT)");
+    private TextView priceView;
+    private TextView stockView;
+    private TextView cartView;
+    private TextView totalView;
 
-        db.execSQL("CREATE TABLE customers (" +
-                "id INTEGER PRIMARY KEY AUTOINCREMENT," +
-                "name TEXT NOT NULL," +
-                "phone TEXT," +
-                "address TEXT)");
+    private LinearLayout cartContainer;
 
-        db.execSQL("CREATE TABLE orders (" +
-                "id INTEGER PRIMARY KEY AUTOINCREMENT," +
-                "customer_id INTEGER," +
-                "customer_name TEXT," +
-                "created_at TEXT," +
-                "total INTEGER DEFAULT 0," +
-                "paid INTEGER DEFAULT 0," +
-                "profit INTEGER DEFAULT 0," +
-                "note TEXT)");
+    private ArrayList<Long> customerIds = new ArrayList<>();
+    private ArrayList<Long> productIds = new ArrayList<>();
+    private ArrayList<String> productNames = new ArrayList<>();
+    private ArrayList<Long> productPrices = new ArrayList<>();
+    private ArrayList<Long> productBuys = new ArrayList<>();
+    private ArrayList<Integer> productCartons = new ArrayList<>();
+    private ArrayList<Integer> productStocks = new ArrayList<>();
 
-        db.execSQL("CREATE TABLE order_items (" +
-                "id INTEGER PRIMARY KEY AUTOINCREMENT," +
-                "order_id INTEGER," +
-                "product_id INTEGER," +
-                "product_name TEXT," +
-                "quantity_pieces INTEGER," +
-                "unit_price INTEGER," +
-                "buy_price INTEGER," +
-                "line_total INTEGER)");
+    private ArrayList<CartLine> cart = new ArrayList<>();
 
-        db.execSQL("CREATE TABLE payments (" +
-                "id INTEGER PRIMARY KEY AUTOINCREMENT," +
-                "order_id INTEGER," +
-                "amount INTEGER," +
-                "created_at TEXT)");
+    private int selectedProduct = -1;
 
-        db.execSQL("CREATE TABLE settings (" +
-                "key TEXT PRIMARY KEY," +
-                "value TEXT)");
+    private long total = 0;
 
-        db.execSQL("INSERT INTO settings(key,value) VALUES " +
-                "('store_name','فروشگاه من')," +
-                "('store_phone','')");
-    }
+    private int green = Color.rgb(12, 105, 76);
+    private int background = Color.rgb(245, 248, 247);
 
     @Override
-    public void onUpgrade(
-            SQLiteDatabase db,
-            int oldVersion,
-            int newVersion) {
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        db = new Database(this);
+
+        buildScreen();
+        loadCustomers();
+        loadProducts();
+        updateCart();
     }
 
-    private String currentDate() {
-        return new SimpleDateFormat(
-                "yyyy/MM/dd HH:mm",
-                Locale.getDefault()
-        ).format(new Date());
+    private TextView text(String value, int size) {
+
+        TextView t = new TextView(this);
+        t.setText(value);
+        t.setTextSize(size);
+        t.setTextColor(Color.rgb(40, 50, 45));
+        t.setPadding(4, 10, 4, 10);
+
+        return t;
     }
 
-    // افزودن کالا
+    private EditText field(String hint) {
 
-    public long addProduct(
-            String name,
-            String category,
-            int perCarton,
-            long buyPrice,
-            long piecePrice,
-            long cartonPrice,
-            int stock) {
+        EditText e = new EditText(this);
+        e.setHint(hint);
+        e.setSingleLine(true);
+        e.setTextSize(15);
+        e.setPadding(14, 10, 14, 10);
+        e.setBackgroundColor(Color.WHITE);
+        e.setInputType(InputType.TYPE_CLASS_NUMBER);
 
-        ContentValues values = new ContentValues();
-
-        values.put("name", name);
-        values.put("category", category);
-        values.put("per_carton", Math.max(1, perCarton));
-        values.put("buy_price", buyPrice);
-        values.put("piece_price", piecePrice);
-        values.put("carton_price", cartonPrice);
-        values.put("stock_pieces", stock);
-
-        return getWritableDatabase().insert(
-                "products", null, values);
+        return e;
     }
 
-    // دریافت کالاها
+    private Button button(String title) {
 
-    public Cursor products() {
-        return getReadableDatabase().rawQuery(
-                "SELECT * FROM products ORDER BY name",
-                null
+        Button b = new Button(this);
+        b.setText(title);
+        b.setAllCaps(false);
+        b.setTextSize(15);
+
+        return b;
+    }
+
+    private LinearLayout section(String title) {
+
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(14, 12, 14, 12);
+        box.setBackgroundColor(Color.WHITE);
+
+        TextView heading = text(title, 17);
+        heading.setTextColor(green);
+
+        box.addView(heading);
+
+        LinearLayout.LayoutParams params =
+                new LinearLayout.LayoutParams(
+                        -1, -2
+                );
+
+        params.setMargins(0, 8, 0, 8);
+
+        return box;
+    }
+
+    private void buildScreen() {
+
+        ScrollView scroll = new ScrollView(this);
+
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(15, 12, 15, 20);
+        root.setBackgroundColor(background);
+
+        scroll.addView(root);
+
+        TextView title = text("ثبت سفارش جدید", 25);
+        title.setGravity(Gravity.CENTER);
+        title.setTextColor(green);
+
+        root.addView(title);
+
+        root.addView(text(
+                "اطلاعات مشتری",
+                18
+        ));
+
+        customerSpinner = new Spinner(this);
+
+        root.addView(customerSpinner);
+
+        LinearLayout productBox = section("انتخاب کالا");
+
+        productSearch = new AutoCompleteTextView(this);
+        productSearch.setHint("نام کالا را جستجو کنید...");
+        productSearch.setTextSize(16);
+        productSearch.setPadding(15, 12, 15, 12);
+        productSearch.setThreshold(1);
+
+        productBox.addView(productSearch);
+
+        priceView = text("قیمت فروش: -", 15);
+        productBox.addView(priceView);
+
+        stockView = text("موجودی: -", 15);
+        productBox.addView(stockView);
+
+        productSearch.setOnItemClickListener(
+                (parent, view, position, id) -> {
+
+                    String selected =
+                            parent.getItemAtPosition(position).toString();
+
+                    selectProduct(selected);
+                }
         );
-    }
 
-    // افزودن مشتری
+        root.addView(productBox);
 
-    public long addCustomer(String name, String phone) {
+        LinearLayout quantityBox =
+                section("تعداد سفارش");
 
-        ContentValues values = new ContentValues();
+        cartonField = field("تعداد کارتن");
+        pieceField = field("تعداد عدد");
 
-        values.put("name", name);
-        values.put("phone", phone);
-        values.put("address", "");
+        quantityBox.addView(cartonField);
+        quantityBox.addView(pieceField);
 
-        return getWritableDatabase().insert(
-                "customers", null, values);
-    }
-
-    // دریافت مشتریان
-
-    public Cursor customers() {
-        return getReadableDatabase().rawQuery(
-                "SELECT * FROM customers ORDER BY name",
-                null
+        TextView guide = text(
+                "مثال: ۲ کارتن و ۵ عدد",
+                13
         );
-    }
 
-    // دریافت سفارش‌ها
+        guide.setTextColor(Color.GRAY);
 
-    public Cursor orders() {
-        return getReadableDatabase().rawQuery(
-                "SELECT * FROM orders ORDER BY id DESC",
-                null
+        quantityBox.addView(guide);
+
+        Button addButton = button("＋ افزودن کالا به سبد");
+        addButton.setBackgroundColor(green);
+        addButton.setTextColor(Color.WHITE);
+
+        quantityBox.addView(addButton);
+
+        addButton.setOnClickListener(v -> addToCart());
+
+        root.addView(quantityBox);
+
+        LinearLayout basket = section("سبد خرید");
+
+        cartContainer = new LinearLayout(this);
+        cartContainer.setOrientation(LinearLayout.VERTICAL);
+
+        basket.addView(cartContainer);
+
+        totalView = text("مبلغ کل: ۰ ریال", 20);
+        totalView.setTextColor(green);
+
+        basket.addView(totalView);
+
+        root.addView(basket);
+
+        LinearLayout payment = section("اطلاعات پرداخت");
+
+        paidField = field("مبلغ دریافتی به ریال");
+        payment.addView(paidField);
+
+        TextView paymentGuide = text(
+                "در صورت پرداخت‌نکردن، مبلغ را خالی بگذارید.",
+                13
         );
+
+        payment.addView(paymentGuide);
+
+        root.addView(payment);
+
+        Button saveButton = button("ثبت نهایی سفارش");
+
+        saveButton.setTextSize(18);
+        saveButton.setBackgroundColor(green);
+        saveButton.setTextColor(Color.WHITE);
+
+        root.addView(saveButton);
+
+        saveButton.setOnClickListener(v -> saveOrder());
+
+        setContentView(scroll);
     }
 
-    // ثبت سفارش
+    private void loadCustomers() {
 
-    public long createOrder(
-            long customerId,
-            ArrayList<CartLine> items,
-            long paid) {
+        customerIds.clear();
 
-        if (items == null || items.isEmpty() || paid < 0) {
-            return -1;
-        }
+        ArrayList<String> names = new ArrayList<>();
 
-        long total = 0;
-        long profit = 0;
+        Cursor cursor = db.customers();
 
-        for (CartLine item : items) {
+        while (cursor.moveToNext()) {
 
-            if (item.qty <= 0 || item.price < 0 || item.buy < 0) {
-                return -1;
-            }
-
-            total += (long) item.qty * item.price;
-            profit += (long) item.qty * (item.price - item.buy);
-        }
-
-        if (paid > total) {
-            return -1;
-        }
-
-        SQLiteDatabase db = getWritableDatabase();
-        db.beginTransaction();
-
-        try {
-
-            String customerName;
-
-            Cursor customer = db.query(
-                    "customers",
-                    new String[]{"name"},
-                    "id=?",
-                    new String[]{String.valueOf(customerId)},
-                    null, null, null
+            customerIds.add(
+                    cursor.getLong(
+                            cursor.getColumnIndexOrThrow("id")
+                    )
             );
 
-            try {
-                if (!customer.moveToFirst()) {
-                    return -1;
-                }
-
-                customerName = customer.getString(0);
-
-            } finally {
-                customer.close();
-            }
-
-            ContentValues order = new ContentValues();
-
-            order.put("customer_id", customerId);
-            order.put("customer_name", customerName);
-            order.put("created_at", currentDate());
-            order.put("total", total);
-            order.put("paid", paid);
-            order.put("profit", profit);
-            order.put("note", "");
-
-            long orderId = db.insertOrThrow(
-                    "orders", null, order);
-
-            for (CartLine item : items) {
-
-                ContentValues row = new ContentValues();
-
-                row.put("order_id", orderId);
-                row.put("product_id", item.productId);
-                row.put("product_name", item.name);
-                row.put("quantity_pieces", item.qty);
-                row.put("unit_price", item.price);
-                row.put("buy_price", item.buy);
-                row.put("line_total",
-                        (long) item.qty * item.price);
-
-                db.insertOrThrow(
-                        "order_items", null, row);
-
-                android.database.sqlite.SQLiteStatement statement =
-                        db.compileStatement(
-                                "UPDATE products " +
-                                "SET stock_pieces = stock_pieces - ? " +
-                                "WHERE id = ? AND stock_pieces >= ?"
-                        );
-
-                statement.bindLong(1, item.qty);
-                statement.bindLong(2, item.productId);
-                statement.bindLong(3, item.qty);
-
-                int updated = statement.executeUpdateDelete();
-                statement.close();
-
-                if (updated != 1) {
-                    return -1;
-                }
-            }
-
-            // ثبت پرداخت اولیه
-
-            if (paid > 0) {
-
-                ContentValues payment = new ContentValues();
-
-                payment.put("order_id", orderId);
-                payment.put("amount", paid);
-                payment.put("created_at", currentDate());
-
-                db.insertOrThrow(
-                        "payments", null, payment);
-            }
-
-            db.setTransactionSuccessful();
-
-            return orderId;
-
-        } catch (Exception e) {
-
-            return -1;
-
-        } finally {
-
-            db.endTransaction();
+            names.add(
+                    cursor.getString(
+                            cursor.getColumnIndexOrThrow("name")
+                    )
+            );
         }
-    }
 
-    // محاسبه آمار
+        cursor.close();
 
-    public long scalar(String sql) {
+        ArrayAdapter<String> adapter =
+                new ArrayAdapter<>(
+                        this,
+                        android.R.layout.simple_spinner_item,
+                        names
+                );
 
-        Cursor cursor = getReadableDatabase().rawQuery(
-                sql, null);
-
-        try {
-            return cursor.moveToFirst()
-                    ? cursor.getLong(0)
-                    : 0;
-
-        } finally {
-            cursor.close();
-        }
-    }
-
-    // دریافت تنظیمات
-
-    public String setting(String key) {
-
-        Cursor cursor = getReadableDatabase().rawQuery(
-                "SELECT value FROM settings WHERE key=?",
-                new String[]{key}
+        adapter.setDropDownViewResource(
+                android.R.layout.simple_spinner_dropdown_item
         );
 
-        try {
-            return cursor.moveToFirst()
-                    ? cursor.getString(0)
-                    : "";
+        customerSpinner.setAdapter(adapter);
+    }
 
-        } finally {
-            cursor.close();
+    private void loadProducts() {
+
+        productIds.clear();
+        productNames.clear();
+        productPrices.clear();
+        productBuys.clear();
+        productCartons.clear();
+        productStocks.clear();
+
+        ArrayList<String> names = new ArrayList<>();
+
+        Cursor cursor = db.products();
+
+        while (cursor.moveToNext()) {
+
+            long id = cursor.getLong(
+                    cursor.getColumnIndexOrThrow("id")
+            );
+
+            String name = cursor.getString(
+                    cursor.getColumnIndexOrThrow("name")
+            );
+
+            long price = cursor.getLong(
+                    cursor.getColumnIndexOrThrow("piece_price")
+            );
+
+            long buy = cursor.getLong(
+                    cursor.getColumnIndexOrThrow("buy_price")
+            );
+
+            int carton = cursor.getInt(
+                    cursor.getColumnIndexOrThrow("per_carton")
+            );
+
+            int stock = cursor.getInt(
+                    cursor.getColumnIndexOrThrow("stock_pieces")
+            );
+
+            productIds.add(id);
+            productNames.add(name);
+            productPrices.add(price);
+            productBuys.add(buy);
+            productCartons.add(Math.max(1, carton));
+            productStocks.add(stock);
+
+            names.add(name);
         }
+
+        cursor.close();
+
+        ArrayAdapter<String> adapter =
+                new ArrayAdapter<>(
+                        this,
+                        android.R.layout.simple_dropdown_item_1line,
+                        names
+                );
+
+        productSearch.setAdapter(adapter);
     }
 
-    // ذخیره تنظیمات
+    private void selectProduct(String name) {
 
-    public void setSetting(String key, String value) {
+        selectedProduct = productNames.indexOf(name);
 
-        ContentValues values = new ContentValues();
-
-        values.put("key", key);
-        values.put("value", value);
-
-        getWritableDatabase().insertWithOnConflict(
-                "settings",
-                null,
-                values,
-                SQLiteDatabase.CONFLICT_REPLACE
-        );
-    }
-
-    // ثبت پرداخت جدید
-
-    public void addPayment(long orderId, long amount) {
-
-        if (amount <= 0) {
+        if (selectedProduct < 0) {
             return;
         }
 
-        SQLiteDatabase db = getWritableDatabase();
-        db.beginTransaction();
+        priceView.setText(
+                "قیمت هر عدد: " +
+                productPrices.get(selectedProduct) +
+                " ریال"
+        );
+
+        stockView.setText(
+                "موجودی: " +
+                productStocks.get(selectedProduct) +
+                " عدد | هر کارتن: " +
+                productCartons.get(selectedProduct) +
+                " عدد"
+        );
+
+        cartonField.setText("");
+        pieceField.setText("");
+    }
+
+    private void addToCart() {
+
+        if (selectedProduct < 0) {
+
+            Toast.makeText(
+                    this,
+                    "ابتدا کالا را انتخاب کنید.",
+                    Toast.LENGTH_SHORT
+            ).show();
+
+            return;
+        }
 
         try {
 
-            Cursor cursor = db.query(
-                    "orders",
-                    new String[]{"total", "paid"},
-                    "id=?",
-                    new String[]{String.valueOf(orderId)},
-                    null, null, null
-            );
+            int cartons = cartonField.getText().toString().trim().isEmpty()
+                    ? 0
+                    : Integer.parseInt(
+                            cartonField.getText().toString().trim()
+                    );
 
-            long remaining;
+            int pieces = pieceField.getText().toString().trim().isEmpty()
+                    ? 0
+                    : Integer.parseInt(
+                            pieceField.getText().toString().trim()
+                    );
 
-            try {
+            if (cartons < 0 || pieces < 0 ||
+                    (cartons == 0 && pieces == 0)) {
 
-                if (!cursor.moveToFirst()) {
-                    return;
-                }
-
-                remaining = cursor.getLong(0) - cursor.getLong(1);
-
-            } finally {
-                cursor.close();
+                throw new NumberFormatException();
             }
 
-            if (amount > remaining) {
+            long quantity =
+                    (long) cartons * productCartons.get(selectedProduct)
+                    + pieces;
+
+            if (quantity > Integer.MAX_VALUE) {
+                throw new NumberFormatException();
+            }
+
+            int already = 0;
+
+            long id = productIds.get(selectedProduct);
+
+            for (CartLine item : cart) {
+
+                if (item.productId == id) {
+                    already += item.qty;
+                }
+            }
+
+            if ((long) already + quantity >
+                    productStocks.get(selectedProduct)) {
+
+                Toast.makeText(
+                        this,
+                        "موجودی کافی نیست.",
+                        Toast.LENGTH_LONG
+                ).show();
+
                 return;
             }
 
-            ContentValues payment = new ContentValues();
-
-            payment.put("order_id", orderId);
-            payment.put("amount", amount);
-            payment.put("created_at", currentDate());
-
-            db.insertOrThrow(
-                    "payments", null, payment);
-
-            ContentValues update = new ContentValues();
-
-            update.put("paid", amount + getPaid(db, orderId));
-
-            db.update(
-                    "orders",
-                    update,
-                    "id=?",
-                    new String[]{String.valueOf(orderId)}
+            cart.add(
+                    new CartLine(
+                            id,
+                            productNames.get(selectedProduct),
+                            (int) quantity,
+                            productPrices.get(selectedProduct),
+                            productBuys.get(selectedProduct)
+                    )
             );
 
-            db.setTransactionSuccessful();
+            productSearch.setText("");
+            selectedProduct = -1;
 
-        } finally {
+            priceView.setText("قیمت فروش: -");
+            stockView.setText("موجودی: -");
 
-            db.endTransaction();
+            cartonField.setText("");
+            pieceField.setText("");
+
+            updateCart();
+
+            Toast.makeText(
+                    this,
+                    "کالا اضافه شد.",
+                    Toast.LENGTH_SHORT
+            ).show();
+
+        } catch (NumberFormatException e) {
+
+            Toast.makeText(
+                    this,
+                    "تعداد واردشده معتبر نیست.",
+                    Toast.LENGTH_SHORT
+            ).show();
         }
     }
 
-    private long getPaid(SQLiteDatabase db, long orderId) {
+    private void updateCart() {
 
-        Cursor cursor = db.query(
-                "orders",
-                new String[]{"paid"},
-                "id=?",
-                new String[]{String.valueOf(orderId)},
-                null, null, null
+        cartContainer.removeAllViews();
+
+        total = 0;
+
+        if (cart.isEmpty()) {
+
+            cartContainer.addView(
+                    text("سبد خرید خالی است.", 15)
+            );
+        }
+
+        for (int i = 0; i < cart.size(); i++) {
+
+            final int index = i;
+
+            CartLine item = cart.get(i);
+
+            long lineTotal =
+                    (long) item.qty * item.price;
+
+            total += lineTotal;
+
+            LinearLayout row = new LinearLayout(this);
+
+            row.setOrientation(LinearLayout.VERTICAL);
+            row.setPadding(8, 10, 8, 10);
+
+            TextView details = text(
+                    item.name +
+                    "\nتعداد: " + item.qty +
+                    " عدد\nمبلغ: " + lineTotal +
+                    " ریال",
+                    15
+            );
+
+            row.addView(details);
+
+            Button remove = button("حذف از سفارش");
+
+            remove.setTextColor(Color.RED);
+
+            remove.setOnClickListener(v -> {
+
+                cart.remove(index);
+                updateCart();
+            });
+
+            row.addView(remove);
+
+            cartContainer.addView(row);
+
+            View divider = new View(this);
+            divider.setBackgroundColor(Color.LTGRAY);
+
+            cartContainer.addView(
+                    divider,
+                    new LinearLayout.LayoutParams(-1, 1)
+            );
+        }
+
+        totalView.setText(
+                "مبلغ کل سفارش: " + total + " ریال"
         );
+    }
+
+    private void saveOrder() {
+
+        if (customerIds.isEmpty()) {
+
+            Toast.makeText(
+                    this,
+                    "ابتدا یک مشتری ثبت کنید.",
+                    Toast.LENGTH_LONG
+            ).show();
+
+            return;
+        }
+
+        if (cart.isEmpty()) {
+
+            Toast.makeText(
+                    this,
+                    "سبد خرید خالی است.",
+                    Toast.LENGTH_SHORT
+            ).show();
+
+            return;
+        }
 
         try {
 
-            return cursor.moveToFirst()
-                    ? cursor.getLong(0)
-                    : 0;
+            long paid = paidField.getText().toString().trim().isEmpty()
+                    ? 0
+                    : Long.parseLong(
+                            paidField.getText().toString().trim()
+                    );
 
-        } finally {
-            cursor.close();
+            if (paid < 0 || paid > total) {
+
+                paidField.setError(
+                        "مبلغ پرداختی نامعتبر است."
+                );
+
+                return;
+            }
+
+            long customerId = customerIds.get(
+                    customerSpinner.getSelectedItemPosition()
+            );
+
+            long orderId = db.createOrder(
+                    customerId,
+                    cart,
+                    paid
+            );
+
+            if (orderId == -1) {
+
+                Toast.makeText(
+                        this,
+                        "ثبت سفارش انجام نشد. موجودی را بررسی کنید.",
+                        Toast.LENGTH_LONG
+                ).show();
+
+                return;
+            }
+
+            new AlertDialog.Builder(this)
+                    .setTitle("سفارش با موفقیت ثبت شد")
+                    .setMessage(
+                            "شماره سفارش: " + orderId +
+                            "\nمبلغ کل: " + total + " ریال" +
+                            "\nپرداختی: " + paid + " ریال" +
+                            "\nباقی‌مانده: " +
+                            (total - paid) + " ریال"
+                    )
+                    .setPositiveButton("تأیید", (d, w) -> {
+
+                        cart.clear();
+
+                        paidField.setText("");
+
+                        updateCart();
+                        loadProducts();
+                    })
+                    .show();
+
+        } catch (NumberFormatException e) {
+
+            paidField.setError(
+                    "مبلغ معتبر وارد کنید."
+            );
         }
     }
-                    }
+    }
