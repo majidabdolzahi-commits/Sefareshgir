@@ -1,1 +1,143 @@
 
+<?xml version="1.0" encoding="utf-8"?>
+
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#F4F7F6"
+    android:fillViewport="true"
+    android:layoutDirection="rtl">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:layoutDirection="rtl">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="ثبت سفارش جدید"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:textColor="#075B43"
+            android:gravity="right"
+            android:padding="12dp"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="اطلاعات مشتری"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="#263B34"
+            android:padding="8dp"/>
+
+        <Spinner
+            android:id="@+id/customerSpinner"
+            android:layout_width="match_parent"
+            android:layout_height="55dp"
+            android:background="#FFFFFF"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="انتخاب کالا"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="#263B34"
+            android:padding="12dp"/>
+
+        <Spinner
+            android:id="@+id/productSpinner"
+            android:layout_width="match_parent"
+            android:layout_height="55dp"
+            android:background="#FFFFFF"/>
+
+        <TextView
+            android:id="@+id/priceView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="قیمت فروش هر عدد: ۰ ریال"
+            android:textSize="14sp"
+            android:textColor="#075B43"
+            android:padding="12dp"/>
+
+        <EditText
+            android:id="@+id/quantityField"
+            android:layout_width="match_parent"
+            android:layout_height="55dp"
+            android:hint="تعداد کالا"
+            android:inputType="number"
+            android:singleLine="true"
+            android:background="#FFFFFF"
+            android:padding="12dp"/>
+
+        <Button
+            android:id="@+id/addButton"
+            android:layout_width="match_parent"
+            android:layout_height="55dp"
+            android:text="افزودن به سبد سفارش"
+            android:textSize="16sp"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#087F5B"
+            android:layout_marginTop="12dp"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="سبد خرید"
+            android:textSize="19sp"
+            android:textStyle="bold"
+            android:textColor="#075B43"
+            android:paddingTop="24dp"
+            android:paddingBottom="12dp"/>
+
+        <LinearLayout
+            android:id="@+id/cartContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="#FFFFFF"
+            android:padding="12dp"/>
+
+        <TextView
+            android:id="@+id/totalView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="مبلغ کل سفارش: ۰ ریال"
+            android:textSize="19sp"
+            android:textStyle="bold"
+            android:textColor="#075B43"
+            android:padding="16dp"
+            android:background="#E1F3EB"
+            android:layout_marginTop="16dp"/>
+
+        <EditText
+            android:id="@+id/paidField"
+            android:layout_width="match_parent"
+            android:layout_height="55dp"
+            android:hint="مبلغ پرداختی (ریال)"
+            android:inputType="number"
+            android:singleLine="true"
+            android:background="#FFFFFF"
+            android:padding="12dp"
+            android:layout_marginTop="12dp"/>
+
+        <Button
+            android:id="@+id/saveButton"
+            android:layout_width="match_parent"
+            android:layout_height="60dp"
+            android:text="ثبت نهایی سفارش"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#075B43"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="25dp"/>
+
+    </LinearLayout>
+
+</ScrollView>
