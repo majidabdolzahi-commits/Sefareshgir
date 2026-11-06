@@ -320,15 +320,27 @@ public class OrderActivity extends Activity {
                 return;
             }
 
-            cart.add(
-                new CartLine(
-                    productId,
-                    productNames.get(position),
-                    quantity,
-                    productPrices.get(position),
-                    productBuys.get(position)
-                )
-            );
+            boolean found = false;
+
+for (CartLine line : cart) {
+    if (line.productId == productId) {
+        line.qty += quantity;
+        found = true;
+        break;
+    }
+}
+
+if (!found) {
+    cart.add(
+        new CartLine(
+            productId,
+            productNames.get(position),
+            quantity,
+            productPrices.get(position),
+            productBuys.get(position)
+        )
+    );
+}
 
             quantityField.setText("");
 
