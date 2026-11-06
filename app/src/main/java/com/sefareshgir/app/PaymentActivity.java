@@ -190,32 +190,12 @@ public class PaymentActivity extends Activity {
 
         listLayout.addView(card, params);
     }
+private void showPaymentDialog(
+        long orderId,
+        long remaining) {
 
-    private void showPaymentDialog(
-            long orderId,
-            long remaining) {
-
-        EditText amountField = new EditText(this);
-
-        amountField.setHint("مبلغ دریافتی به ریال");
-        amountField.setInputType(
-            android.text.InputType.TYPE_CLASS_NUMBER
-        );
-
-        new AlertDialog.Builder(this)
-            .setTitle("دریافت وجه سفارش " + orderId)
-            .setMessage(
-                "مانده بدهی: " + remaining + " ریال"
-            )
-            .setView(amountField)
-            .setPositiveButton("ثبت پرداخت", null)
-            .setNegativeButton("انصراف", null)
-            .create()
-            .show();
-
-        // دکمه ثبت با اعتبارسنجی در ادامه متد مدیریت می‌شود.
-        showValidatedPaymentDialog(orderId, remaining);
-    }
+    showValidatedPaymentDialog(orderId, remaining);
+}
 
     private void showValidatedPaymentDialog(
             long orderId,
