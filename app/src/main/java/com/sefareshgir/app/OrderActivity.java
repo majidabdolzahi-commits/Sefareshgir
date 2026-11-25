@@ -4,18 +4,23 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.os.Bundle;
 import android.graphics.Color;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.view.Gravity;
+import android.view.View;
+import android.view.ViewGroup;
 import android.widget.*;
 
 import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
 
 import java.util.ArrayList;
+import java.util.Locale;
 
 public class OrderActivity extends Activity {
 
     private Database db;
 
+    private LinearLayout cartLayout;
     private Spinner customerSpinner;
     private Spinner productSpinner;
 
@@ -23,17 +28,25 @@ public class OrderActivity extends Activity {
     private EditText paidField;
 
     private TextView priceView;
+    private TextView stockView;
     private TextView totalView;
+    private TextView cartCountView;
 
     private ArrayList<Long> customerIds = new ArrayList<>();
     private ArrayList<Long> productIds = new ArrayList<>();
     private ArrayList<String> productNames = new ArrayList<>();
     private ArrayList<Long> productPrices = new ArrayList<>();
     private ArrayList<Long> productBuys = new ArrayList<>();
+    private ArrayList<Integer> productStocks = new ArrayList<>();
 
     private ArrayList<CartLine> cart = new ArrayList<>();
 
     private long total = 0;
+
+    private final int GREEN = Color.rgb(7, 91, 67);
+    private final int DARK = Color.rgb(35, 48, 43);
+    private final int BACKGROUND = Color.rgb(245, 247, 246);
+    private final int GRAY = Color.rgb(110, 120, 115);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -44,87 +57,348 @@ public class OrderActivity extends Activity {
         showScreen();
         loadCustomers();
         loadProducts();
+        updateCart();
+    }
+
+    private int dp(float value) {
+        return (int) (value * getResources()
+                .getDisplayMetrics().density + 0.5f);
+    }
+
+    private GradientDrawable shape(int color, int radius) {
+
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setColor(color);
+        drawable.setCornerRadius(dp(radius));
+
+        return drawable;
+    }
+
+    private TextView text(
+            String value,
+            int size,
+            int color,
+            boolean bold) {
+
+        TextView view = new TextView(this);
+
+        view.setText(value);
+        view.setTextSize(size);
+        view.setTextColor(color);
+        view.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
+        view.setTextDirection(View.TEXT_DIRECTION_RTL);
+
+        if (bold) {
+            view.setTypeface(null, Typeface.BOLD);
+        }
+
+        return view;
+    }
+
+    private void styleButton(Button button, int color) {
+
+        button.setAllCaps(false);
+        button.setTextColor(Color.WHITE);
+        button.setTextSize(14);
+        button.setTypeface(null, Typeface.BOLD);
+        button.setBackground(shape(color, 12));
+        button.setPadding(dp(12), dp(10), dp(12), dp(10));
+    }
+
+    private LinearLayout card() {
+
+        LinearLayout layout = new LinearLayout(this);
+
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(dp(15), dp(15), dp(15), dp(15));
+        layout.setBackground(shape(Color.WHITE, 16));
+        layout.setElevation(dp(2));
+        layout.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+
+        LinearLayout.LayoutParams params =
+                new LinearLayout.LayoutParams(
+                        -1,
+                        -2
+                );
+
+        params.setMargins(0, 0, 0, dp(14));
+
+        layout.setLayoutParams(params);
+
+        return layout;
+    }
+
+    private void addLabel(LinearLayout parent, String value) {
+
+        TextView label = text(value, 14, DARK, true);
+
+        LinearLayout.LayoutParams params =
+                new LinearLayout.LayoutParams(-1, -2);
+
+        params.setMargins(0, dp(8), 0, dp(6));
+
+        parent.addView(label, params);
     }
 
     private void showScreen() {
 
+        ScrollView scroll = new ScrollView(this);
+        scroll.setFillViewport(true);
+        scroll.setBackgroundColor(BACKGROUND);
+
         LinearLayout root = new LinearLayout(this);
+
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(18, 18, 18, 18);
-        root.setBackgroundColor(Color.rgb(246, 248, 247));
+        root.setPadding(dp(16), dp(16), dp(16), dp(24));
+        root.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
 
-        TextView title = new TextView(this);
-        title.setText("ثبت سفارش جدید");
-        title.setTextSize(24);
-        title.setTextColor(Color.rgb(7, 91, 67));
+        scroll.addView(root);
+
+        // سربرگ
+
+        LinearLayout header = card();
+        header.setBackground(shape(GREEN, 18));
+
+        TextView title = text(
+                "ثبت سفارش جدید",
+                23,
+                Color.WHITE,
+                true
+        );
+
         title.setGravity(Gravity.CENTER);
-        title.setPadding(5, 15, 5, 20);
+        header.addView(title);
 
-        root.addView(title);
+        TextView subtitle = text(
+                "مدیریت سفارش و فروشگاه",
+                13,
+                Color.rgb(220, 240, 230),
+                false
+        );
 
-        TextView customerLabel = new TextView(this);
-        customerLabel.setText("انتخاب مشتری");
-        customerLabel.setTextSize(16);
-        root.addView(customerLabel);
+        subtitle.setGravity(Gravity.CENTER);
+
+        header.addView(subtitle);
+
+        root.addView(header);
+
+        // انتخاب مشتری
+
+        LinearLayout customerCard = card();
+
+        customerCard.addView(
+                text("اطلاعات مشتری", 18, GREEN, true)
+        );
+
+        addLabel(customerCard, "انتخاب مشتری");
 
         customerSpinner = new Spinner(this);
-        root.addView(customerSpinner);
+        customerSpinner.setMinimumHeight(dp(48));
 
-        TextView productLabel = new TextView(this);
-        productLabel.setText("انتخاب کالا");
-        productLabel.setTextSize(16);
-        productLabel.setPadding(0, 15, 0, 0);
-        root.addView(productLabel);
+        customerCard.addView(customerSpinner);
+
+        root.addView(customerCard);
+
+        // انتخاب کالا
+
+        LinearLayout productCard = card();
+
+        productCard.addView(
+                text("انتخاب محصول", 18, GREEN, true)
+        );
+
+        addLabel(productCard, "نام کالا");
 
         productSpinner = new Spinner(this);
-        root.addView(productSpinner);
+        productSpinner.setMinimumHeight(dp(48));
 
-        priceView = new TextView(this);
-        priceView.setTextSize(15);
-        priceView.setPadding(0, 10, 0, 10);
-        root.addView(priceView);
+        productCard.addView(productSpinner);
+
+        priceView = text(
+                "قیمت فروش: ۰ ریال",
+                15,
+                GREEN,
+                true
+        );
+
+        priceView.setPadding(0, dp(12), 0, dp(4));
+
+        productCard.addView(priceView);
+
+        stockView = text(
+                "موجودی: ۰ عدد",
+                14,
+                GRAY,
+                false
+        );
+
+        productCard.addView(stockView);
+
+        addLabel(productCard, "تعداد موردنظر");
 
         quantityField = new EditText(this);
+        quantityField.setSingleLine(true);
+        quantityField.setTextSize(15);
         quantityField.setHint("تعداد به عدد");
         quantityField.setInputType(
-            android.text.InputType.TYPE_CLASS_NUMBER
+                android.text.InputType.TYPE_CLASS_NUMBER
         );
-        root.addView(quantityField);
+
+        quantityField.setPadding(
+                dp(12), dp(10), dp(12), dp(10)
+        );
+
+        quantityField.setBackground(shape(BACKGROUND, 12));
+
+        productCard.addView(quantityField);
 
         Button addButton = new Button(this);
-        addButton.setText("افزودن کالا به سفارش");
-        addButton.setAllCaps(false);
-        root.addView(addButton);
+        addButton.setText("افزودن به سبد خرید");
+        styleButton(addButton, GREEN);
 
-        TextView cartTitle = new TextView(this);
-        cartTitle.setText("اقلام سفارش");
-        cartTitle.setTextSize(19);
-        cartTitle.setPadding(0, 20, 0, 10);
-        root.addView(cartTitle);
+        LinearLayout.LayoutParams addParams =
+                new LinearLayout.LayoutParams(-1, -2);
 
-        totalView = new TextView(this);
-        totalView.setTextSize(18);
-        totalView.setTextColor(Color.rgb(7, 91, 67));
-        totalView.setPadding(0, 15, 0, 10);
-        root.addView(totalView);
+        addParams.setMargins(0, dp(12), 0, 0);
 
-        paidField = new EditText(this);
-        paidField.setHint("مبلغ پرداختی (ریال)");
-        paidField.setInputType(
-            android.text.InputType.TYPE_CLASS_NUMBER
-        );
-        root.addView(paidField);
+        productCard.addView(addButton, addParams);
 
-        Button saveButton = new Button(this);
-        saveButton.setText("ثبت نهایی سفارش");
-        saveButton.setAllCaps(false);
-        root.addView(saveButton);
+        root.addView(productCard);
 
         addButton.setOnClickListener(v -> addToCart());
 
+        productSpinner.setOnItemSelectedListener(
+                new android.widget.AdapterView.OnItemSelectedListener() {
+
+            @Override
+            public void onItemSelected(
+                    android.widget.AdapterView<?> parent,
+                    View view,
+                    int position,
+                    long id) {
+
+                if (position >= 0 &&
+                        position < productPrices.size()) {
+
+                    priceView.setText(
+                            "قیمت فروش: " +
+                            money(productPrices.get(position)) +
+                            " ریال"
+                    );
+
+                    stockView.setText(
+                            "موجودی: " +
+                            productStocks.get(position) +
+                            " عدد"
+                    );
+
+                } else {
+
+                    priceView.setText("قیمت فروش: ۰ ریال");
+                    stockView.setText("موجودی: ۰ عدد");
+                }
+            }
+
+            @Override
+            public void onNothingSelected(
+                    android.widget.AdapterView<?> parent) {
+            }
+        });
+
+        // سبد خرید
+
+        LinearLayout cartCard = card();
+
+        TextView cartTitle = text(
+                "سبد خرید",
+                19,
+                GREEN,
+                true
+        );
+
+        cartCard.addView(cartTitle);
+
+        cartCountView = text(
+                "تعداد اقلام: ۰",
+                13,
+                GRAY,
+                false
+        );
+
+        cartCard.addView(cartCountView);
+
+        cartLayout = new LinearLayout(this);
+        cartLayout.setOrientation(LinearLayout.VERTICAL);
+
+        LinearLayout.LayoutParams cartParams =
+                new LinearLayout.LayoutParams(-1, -2);
+
+        cartParams.setMargins(0, dp(10), 0, 0);
+
+        cartCard.addView(cartLayout, cartParams);
+
+        root.addView(cartCard);
+
+        // محاسبات مالی
+
+        LinearLayout paymentCard = card();
+
+        paymentCard.addView(
+                text("خلاصه مالی سفارش", 19, GREEN, true)
+        );
+
+        totalView = text(
+                "مبلغ کل: ۰ ریال",
+                20,
+                GREEN,
+                true
+        );
+
+        totalView.setPadding(0, dp(15), 0, dp(15));
+
+        paymentCard.addView(totalView);
+
+        addLabel(paymentCard, "مبلغ دریافتی از مشتری (ریال)");
+
+        paidField = new EditText(this);
+
+        paidField.setSingleLine(true);
+        paidField.setHint("مبلغ پرداختی");
+        paidField.setTextSize(15);
+
+        paidField.setInputType(
+                android.text.InputType.TYPE_CLASS_NUMBER
+        );
+
+        paidField.setPadding(
+                dp(12), dp(10), dp(12), dp(10)
+        );
+
+        paidField.setBackground(shape(BACKGROUND, 12));
+
+        paymentCard.addView(paidField);
+
+        Button saveButton = new Button(this);
+
+        saveButton.setText("ثبت نهایی سفارش");
+        styleButton(saveButton, GREEN);
+
+        LinearLayout.LayoutParams saveParams =
+                new LinearLayout.LayoutParams(-1, -2);
+
+        saveParams.setMargins(0, dp(18), 0, 0);
+
+        paymentCard.addView(saveButton, saveParams);
+
+        root.addView(paymentCard);
+
         saveButton.setOnClickListener(v -> saveOrder());
 
-        setContentView(root);
+        setContentView(scroll);
+    }
+
+    private String money(long value) {
+        return String.format(Locale.US, "%,d", value);
     }
 
     private void loadCustomers() {
@@ -138,32 +412,36 @@ public class OrderActivity extends Activity {
 
         Cursor cursor = db.customers();
 
-        while (cursor.moveToNext()) {
+        try {
 
-            customerIds.add(
-                cursor.getLong(
-                    cursor.getColumnIndexOrThrow("id")
-                )
-            );
+            while (cursor.moveToNext()) {
 
-            names.add(
-                cursor.getString(
-                    cursor.getColumnIndexOrThrow("name")
-                )
-            );
+                customerIds.add(
+                        cursor.getLong(
+                                cursor.getColumnIndexOrThrow("id")
+                        )
+                );
+
+                names.add(
+                        cursor.getString(
+                                cursor.getColumnIndexOrThrow("name")
+                        )
+                );
+            }
+
+        } finally {
+            cursor.close();
         }
 
-        cursor.close();
-
         ArrayAdapter<String> adapter =
-            new ArrayAdapter<>(
-                this,
-                android.R.layout.simple_spinner_item,
-                names
-            );
+                new ArrayAdapter<>(
+                        this,
+                        android.R.layout.simple_spinner_item,
+                        names
+                );
 
         adapter.setDropDownViewResource(
-            android.R.layout.simple_spinner_dropdown_item
+                android.R.layout.simple_spinner_dropdown_item
         );
 
         customerSpinner.setAdapter(adapter);
@@ -175,85 +453,96 @@ public class OrderActivity extends Activity {
         productNames.clear();
         productPrices.clear();
         productBuys.clear();
+        productStocks.clear();
 
         ArrayList<String> names = new ArrayList<>();
 
         Cursor cursor = db.products();
 
-        while (cursor.moveToNext()) {
+        try {
 
-            long id = cursor.getLong(
-                cursor.getColumnIndexOrThrow("id")
-            );
+            while (cursor.moveToNext()) {
 
-            String name = cursor.getString(
-                cursor.getColumnIndexOrThrow("name")
-            );
+                long id = cursor.getLong(
+                        cursor.getColumnIndexOrThrow("id")
+                );
 
-            long price = cursor.getLong(
-                cursor.getColumnIndexOrThrow("piece_price")
-            );
+                String name = cursor.getString(
+                        cursor.getColumnIndexOrThrow("name")
+                );
 
-            long buy = cursor.getLong(
-                cursor.getColumnIndexOrThrow("buy_price")
-            );
+                long price = cursor.getLong(
+                        cursor.getColumnIndexOrThrow("piece_price")
+                );
 
-            int stock = cursor.getInt(
-                cursor.getColumnIndexOrThrow("stock_pieces")
-            );
+                long buy = cursor.getLong(
+                        cursor.getColumnIndexOrThrow("buy_price")
+                );
 
-            if (stock <= 0) {
-                continue;
+                int stock = cursor.getInt(
+                        cursor.getColumnIndexOrThrow("stock_pieces")
+                );
+
+                if (stock <= 0) {
+                    continue;
+                }
+
+                productIds.add(id);
+                productNames.add(name);
+                productPrices.add(price);
+                productBuys.add(buy);
+                productStocks.add(stock);
+
+                names.add(name);
             }
 
-            productIds.add(id);
-            productNames.add(name);
-            productPrices.add(price);
-            productBuys.add(buy);
-
-            names.add(name + " | موجودی: " + stock);
+        } finally {
+            cursor.close();
         }
 
-        cursor.close();
+        if (names.isEmpty()) {
+            names.add("کالای موجودی‌دار ثبت نشده است");
+        }
 
         ArrayAdapter<String> adapter =
-            new ArrayAdapter<>(
-                this,
-                android.R.layout.simple_spinner_item,
-                names
-            );
+                new ArrayAdapter<>(
+                        this,
+                        android.R.layout.simple_spinner_item,
+                        names
+                );
 
         adapter.setDropDownViewResource(
-            android.R.layout.simple_spinner_dropdown_item
+                android.R.layout.simple_spinner_dropdown_item
         );
 
         productSpinner.setAdapter(adapter);
+    }
 
-        productSpinner.setOnItemSelectedListener(
-            new android.widget.AdapterView.OnItemSelectedListener() {
+    private int getCurrentStock(long productId) {
 
-                @Override
-                public void onItemSelected(
-                        android.widget.AdapterView<?> parent,
-                        android.view.View view,
-                        int position,
-                        long id) {
+        Cursor cursor = db.products();
 
-                    if (position < productPrices.size()) {
-                        priceView.setText(
-                            "قیمت فروش هر عدد: " +
-                            productPrices.get(position) +
-                            " ریال"
-                        );
-                    }
-                }
+        try {
 
-                @Override
-                public void onNothingSelected(
-                        android.widget.AdapterView<?> parent) {
+            while (cursor.moveToNext()) {
+
+                long id = cursor.getLong(
+                        cursor.getColumnIndexOrThrow("id")
+                );
+
+                if (id == productId) {
+
+                    return cursor.getInt(
+                            cursor.getColumnIndexOrThrow("stock_pieces")
+                    );
                 }
             }
-        );
+
+        } finally {
+            cursor.close();
+        }
+
+        return 0;
     }
 
     private void addToCart() {
@@ -261,95 +550,89 @@ public class OrderActivity extends Activity {
         int position = productSpinner.getSelectedItemPosition();
 
         if (position < 0 || position >= productIds.size()) {
+
             Toast.makeText(
-                this,
-                "ابتدا کالا ثبت کن.",
-                Toast.LENGTH_SHORT
+                    this,
+                    "ابتدا کالای معتبر انتخاب کن.",
+                    Toast.LENGTH_SHORT
             ).show();
+
+            return;
+        }
+
+        String value = quantityField.getText().toString().trim();
+
+        if (value.isEmpty()) {
+
+            quantityField.setError("تعداد را وارد کن");
             return;
         }
 
         try {
 
-            int quantity = Integer.parseInt(
-                quantityField.getText().toString().trim()
-            );
+            int quantity = Integer.parseInt(value);
 
             if (quantity <= 0) {
-                throw new NumberFormatException();
+                quantityField.setError("تعداد باید بیشتر از صفر باشد");
+                return;
             }
 
             long productId = productIds.get(position);
 
-            Cursor cursor = db.products();
-
-            int stock = 0;
-
-            while (cursor.moveToNext()) {
-
-                if (cursor.getLong(
-                    cursor.getColumnIndexOrThrow("id")
-                ) == productId) {
-
-                    stock = cursor.getInt(
-                        cursor.getColumnIndexOrThrow("stock_pieces")
-                    );
-
-                    break;
-                }
-            }
-
-            cursor.close();
+            int stock = getCurrentStock(productId);
 
             int alreadyAdded = 0;
 
+            CartLine existing = null;
+
             for (CartLine line : cart) {
+
                 if (line.productId == productId) {
+
                     alreadyAdded += line.qty;
+                    existing = line;
                 }
             }
 
             if ((long) alreadyAdded + quantity > stock) {
 
+                quantityField.setError("موجودی کالا کافی نیست");
+
                 Toast.makeText(
-                    this,
-                    "موجودی کالا کافی نیست.",
-                    Toast.LENGTH_LONG
+                        this,
+                        "موجودی قابل سفارش: " +
+                        Math.max(0, stock - alreadyAdded),
+                        Toast.LENGTH_LONG
                 ).show();
 
                 return;
             }
 
-            boolean found = false;
+            if (existing != null) {
 
-for (CartLine line : cart) {
-    if (line.productId == productId) {
-        line.qty += quantity;
-        found = true;
-        break;
-    }
-}
+                existing.qty += quantity;
 
-if (!found) {
-    cart.add(
-        new CartLine(
-            productId,
-            productNames.get(position),
-            quantity,
-            productPrices.get(position),
-            productBuys.get(position)
-        )
-    );
-}
+            } else {
+
+                cart.add(
+                        new CartLine(
+                                productId,
+                                productNames.get(position),
+                                quantity,
+                                productPrices.get(position),
+                                productBuys.get(position)
+                        )
+                );
+            }
 
             quantityField.setText("");
 
-            updateTotal();
+            updateCart();
 
             Toast.makeText(
-                this,
-                "کالا به سفارش اضافه شد.",
-                Toast.LENGTH_SHORT
+                    this,
+                    "کالا به سبد خرید اضافه شد.",
+                    Toast.LENGTH_SHORT
             ).show();
 
         } catch (NumberFormatException e) {
@@ -358,104 +641,149 @@ if (!found) {
         }
     }
 
-    private void updateTotal() {
+    private void updateCart() {
+
+        cartLayout.removeAllViews();
 
         total = 0;
 
-        StringBuilder details = new StringBuilder();
+        int count = 0;
 
-        for (CartLine line : cart) {
+        for (int i = 0; i < cart.size(); i++) {
+
+            CartLine line = cart.get(i);
 
             long lineTotal = (long) line.qty * line.price;
 
             total += lineTotal;
+            count += line.qty;
 
-            details.append(line.name)
-                .append(" | ")
-                .append(line.qty)
-                .append(" عدد | ")
-                .append(lineTotal)
-                .append(" ریال\n");
+            addCartItem(line);
         }
 
-        totalView.setText(
-            "اقلام سفارش:\n" + details +
-            "\nمبلغ کل: " + total + " ریال"
+        cartCountView.setText(
+                "تعداد اقلام: " + cart.size() +
+                " | مجموع تعداد: " + count
         );
-    }
 
-    private void saveOrder() {
+        totalView.setText(
+                "مبلغ کل سفارش: " + money(total) + " ریال"
+        );
 
         if (cart.isEmpty()) {
 
-            Toast.makeText(
-                this,
-                "هیچ کالایی به سفارش اضافه نشده است.",
-                Toast.LENGTH_SHORT
-            ).show();
-
-            return;
-        }
-
-        try {
-
-            long paid = paidField.getText().toString().trim().isEmpty()
-                ? 0
-                : Long.parseLong(
-                    paidField.getText().toString().trim()
-                );
-
-            if (paid < 0 || paid > total) {
-
-                paidField.setError(
-                    "مبلغ پرداختی نامعتبر است."
-                );
-
-                return;
-            }
-
-            long customerId = customerIds.get(
-                customerSpinner.getSelectedItemPosition()
+            TextView empty = text(
+                    "سبد خرید خالی است.",
+                    14,
+                    GRAY,
+                    false
             );
 
-            long orderId = db.createOrder(
-                customerId,
-                cart,
-                paid
-            );
+            empty.setGravity(Gravity.CENTER);
+            empty.setPadding(0, dp(20), 0, dp(20));
 
-            if (orderId == -1) {
-
-                Toast.makeText(
-                    this,
-                    "ثبت سفارش انجام نشد. موجودی کالا را بررسی کن.",
-                    Toast.LENGTH_LONG
-                ).show();
-
-                return;
-            }
-
-            new AlertDialog.Builder(this)
-                .setTitle("سفارش ثبت شد")
-                .setMessage(
-                    "شماره سفارش: " + orderId +
-                    "\nمبلغ کل: " + total + " ریال" +
-                    "\nپرداخت‌شده: " + paid + " ریال" +
-                    "\nباقی‌مانده: " + (total - paid) + " ریال"
-                )
-                .setPositiveButton("باشه", (dialog, which) -> {
-                    cart.clear();
-                    total = 0;
-                    paidField.setText("");
-                    quantityField.setText("");
-                    updateTotal();
-                    loadProducts();
-                })
-                .show();
-
-        } catch (NumberFormatException e) {
-
-            paidField.setError("مبلغ معتبر وارد کن");
+            cartLayout.addView(empty);
         }
     }
-          }
+
+    private void addCartItem(CartLine line) {
+
+        LinearLayout item = new LinearLayout(this);
+
+        item.setOrientation(LinearLayout.VERTICAL);
+        item.setPadding(dp(12), dp(12), dp(12), dp(12));
+        item.setBackground(shape(BACKGROUND, 12));
+        item.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+
+        LinearLayout.LayoutParams itemParams =
+                new LinearLayout.LayoutParams(-1, -2);
+
+        itemParams.setMargins(0, 0, 0, dp(9));
+
+        item.setLayoutParams(itemParams);
+
+        TextView name = text(
+                line.name,
+                16,
+                DARK,
+                true
+        );
+
+        item.addView(name);
+
+        TextView details = text(
+                "قیمت واحد: " + money(line.price) +
+                " ریال\nمبلغ: " +
+                money((long) line.qty * line.price) +
+                " ریال",
+                13,
+                GRAY,
+                false
+        );
+
+        details.setPadding(0, dp(8), 0, dp(8));
+
+        item.addView(details);
+
+        LinearLayout controls = new LinearLayout(this);
+
+        controls.setOrientation(LinearLayout.HORIZONTAL);
+        controls.setGravity(Gravity.CENTER_VERTICAL);
+
+        Button minus = new Button(this);
+        minus.setText("−");
+        styleButton(minus, GRAY);
+
+        Button plus = new Button(this);
+        plus.setText("+");
+        styleButton(plus, GREEN);
+
+        TextView quantity = text(
+                "تعداد: " + line.qty,
+                15,
+                DARK,
+                true
+        );
+
+        quantity.setGravity(Gravity.CENTER);
+
+        LinearLayout.LayoutParams quantityParams =
+                new LinearLayout.LayoutParams(0, -2, 1);
+
+        controls.addView(minus);
+        controls.addView(quantity, quantityParams);
+        controls.addView(plus);
+
+        item.addView(controls);
+
+        Button delete = new Button(this);
+
+        delete.setText("حذف از سبد خرید");
+        styleButton(delete, Color.rgb(190, 55, 55));
+
+        LinearLayout.LayoutParams deleteParams =
+                new LinearLayout.LayoutParams(-1, -2);
+
+        deleteParams.setMargins(0, dp(8), 0, 0);
+
+        item.addView(delete, deleteParams);
+
+        plus.setOnClickListener(v -> {
+
+            int stock = getCurrentStock(line.productId);
+
+            int added = 0;
+
+            for (CartLine other : cart) {
+
+                if (other.productId == line.productId) {
+                    added += other.qty;
+                }
+            }
+
+            if (added >= stock) {
+
+                Toast.makeText(
+                        this,
+                        "موجودی کافی نیست.",
+              
